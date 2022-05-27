@@ -894,13 +894,18 @@ static RPCHelpMan getblockheader()
     };
 }
 
+static void EnsureNotPruned(BlockManager& blockman, const CBlockIndex* pblockindex) EXCLUSIVE_LOCKS_REQUIRED(::cs_main)
+{
+    AssertLockHeld(::cs_main);
+
+    if (blockman.IsBlockPruned(pblockindex)) {
+        throw JSONRPCError(RPC_MISC_ERROR, "Block not available (pruned data)");
+    }
+}
+
 static CBlock GetBlockChecked(const CBlockIndex* pblockindex)
 {
     CBlock block;
-    if (IsBlockPruned(pblockindex)) {
-        throw JSONRPCError(RPC_MISC_ERROR, "Block not available (pruned data)");
-    }
-
     if (!ReadBlockFromDisk(block, pblockindex, Params().GetConsensus())) {
         // Block not found on disk. This could be because we have the block
         // header in our index but not yet have the block or did not accept the
@@ -994,6 +999,7 @@ static RPCHelpMan getblock()
     }
 
     CBlock block;
+    bool havePruned;
     const CBlockIndex* pblockindex;
     const CBlockIndex* tip;
     {
@@ -1006,6 +1012,14 @@ static RPCHelpMan getblock()
             throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "Block not found");
         }
 
+        havePruned = chainman.m_blockman.m_have_pruned;
+        if(havePruned) {
+            EnsureNotPruned(chainman.m_blockman, pblockindex);
+            block = GetBlockChecked(pblockindex);
+        }
+    }
+
+    if(!havePruned) {
         block = GetBlockChecked(pblockindex);
     }
 
@@ -2021,6 +2035,7 @@ static RPCHelpMan getblockstats()
         }
     }
 
+    EnsureNotPruned(chainman.m_blockman, &pindex);
     const CBlock block = GetBlockChecked(pindex);
     const CBlockUndo blockUndo = GetUndoChecked(pindex);
 
