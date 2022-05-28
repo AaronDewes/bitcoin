@@ -894,7 +894,7 @@ static RPCHelpMan getblockheader()
     };
 }
 
-static void EnsureNotPruned(BlockManager& blockman, const CBlockIndex* pblockindex) EXCLUSIVE_LOCKS_REQUIRED(::cs_main)
+static void EnsureNotPruned(const CBlockIndex* pblockindex) EXCLUSIVE_LOCKS_REQUIRED(::cs_main)
 {
     AssertLockHeld(::cs_main);
 
